@@ -1,0 +1,63 @@
+action_selector: "socg"
+epsilon_start: 1.0
+epsilon_finish: 0.05
+epsilon_anneal_time: 50000
+graph_epsilon: 0.00
+
+buffer_size: 5000
+
+# update the target network every {} episodes
+target_update_interval: 200
+
+# use the Q_Learner to train
+agent_output_type: "q"
+mac: "sopcg_mac"
+learner: "sopcg_learner"
+agent: "rnn_cg"
+double_q: True
+double_q_on_graph: True
+construction: 'tree'
+
+single_q_hidden_dim: []
+pairwise_q_hidden_dim: [64]
+individual_q: True
+privileged_bias: False
+state_embed_dim: 32
+
+name: "sopcg"
+
+msg_anytime: True             
+msg_normalized: True
+
+adversarial_training: True
+
+runner: "advtrain_cg_episode"
+
+
+action_encoder: "obs_reward"
+use_action_repr: False
+action_latent_dim: 20
+state_latent_dim: 32
+action_repr_learning_phase: 40000
+
+
+# ----- for adversary -----
+adv_action_selector: "epsilon_greedy"
+adv_epsilon_start: 1.0
+adv_epsilon_finish: 0.05
+adv_epsilon_anneal_time: 50000
+
+adv_buffer_size: 5000
+
+# update the target network every {} episodes
+adv_target_update_interval: 200
+
+# use the Q_Learner to train
+adv_agent_output_type: "q"
+adv_agent: "rnn"
+adv_mac: "basic_mac"
+adv_learner: "q_learner"
+adv_double_q: True
+adv_mixer: "vdn"
+
+adv_name: "vdn"
