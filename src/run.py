@@ -5,7 +5,7 @@ import time
 import threading
 import torch as th
 from types import SimpleNamespace as SN
-from utils.logging import Logger
+from utils.log import Logger
 from utils.timehelper import time_left, time_str
 from os.path import dirname, abspath
 
@@ -37,7 +37,10 @@ def run(_run, _config, _log):
     try:
         map_name = _config["env_args"]["map_name"]
     except:
-        map_name = _config["env_args"]["key"]
+        try:
+            map_name = _config["env_args"]["key"]
+        except:
+            map_name = 'unknown'
     unique_token = f"{_config['name']}_seed{_config['seed']}_{map_name}_{datetime.datetime.now()}"
 
     args.unique_token = unique_token
@@ -185,6 +188,7 @@ def run_sequential(args, logger):
 
         # Run for a whole episode at a time
         episode_batch = runner.run(test_mode=False)
+        # print(f'episode {episode} finished (t_env: {runner.t_env}, last_test_T: {last_test_T})')
         buffer.insert_episode_batch(episode_batch)
 
         if buffer.can_sample(args.batch_size):

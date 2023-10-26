@@ -1,0 +1,2 @@
+class CcgLearner:
+    pass

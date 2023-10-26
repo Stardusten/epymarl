@@ -90,6 +90,18 @@ class MatchingEpsilonGreedyActionSelector():
         picked_actions = pick_random * random_actions + (1 - pick_random) * masked_q_values.max(dim=2)[1]
         return graphs, picked_actions
 
-
 REGISTRY["epsilon_greedy"] = EpsilonGreedyActionSelector
 REGISTRY["socg"] = MatchingEpsilonGreedyActionSelector
+
+class SoftPoliciesSelector():
+
+    def __init__(self, args):
+        self.args = args
+
+    def select_action(self, agent_inputs, avail_actions, t_env, test_mode=False):
+        m = Categorical(agent_inputs)
+        picked_actions = m.sample().long()
+        return picked_actions
+
+
+REGISTRY["soft_policies"] = SoftPoliciesSelector

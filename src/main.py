@@ -9,7 +9,7 @@ from sacred.observers import FileStorageObserver, MongoObserver
 from sacred.utils import apply_backspaces_and_linefeeds
 import sys
 import torch as th
-from utils.logging import get_logger
+from utils.log import get_logger
 import yaml
 
 from run import run
@@ -92,7 +92,10 @@ if __name__ == '__main__':
     try:
         map_name = config_dict["env_args"]["map_name"]
     except:
-        map_name = config_dict["env_args"]["key"]
+        try:
+            map_name = config_dict["env_args"]["key"]
+        except:
+            map_name = 'unknown'
 
 
     # now add all the config to sacred

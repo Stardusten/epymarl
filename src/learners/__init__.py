@@ -8,6 +8,9 @@ from .maddpg_learner import MADDPGLearner
 from .ppo_learner import PPOLearner
 from .sopcg_learner import SopcgLearner
 from .dcg_learner import DCGLearner
+from .scpcg_learner import ScpcgLearner
+from .casec_learner import CASECLearner
+from .ccg_learner import CcgLearner
 
 REGISTRY = {}
 
@@ -21,3 +24,6 @@ REGISTRY["pac_learner"] = PACActorCriticLearner
 REGISTRY["pac_dcg_learner"] = PACDCGLearner
 REGISTRY["sopcg_learner"] = SopcgLearner
 REGISTRY["dcg_learner"] = DCGLearner
+REGISTRY["scpcg_learner"] = ScpcgLearner
+REGISTRY["casec_learner"] = CASECLearner
+REGISTRY["ccg_learner"] = CcgLearner

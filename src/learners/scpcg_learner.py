@@ -1,41 +1,21 @@
 import copy
-from components.episode_buffer import EpisodeBatch
 import torch as th
 from torch.optim import RMSprop
-import utils.constructor as constructor
-from torchviz import make_dot
+from components.episode_buffer import EpisodeBatch
 
 
-class SopcgLearner:
+class ScpcgLearner:
     
     def __init__(self, mac, scheme, logger, args):
         self.args = args
         self.mac = mac
         self.logger = logger
-
         self.params = list(mac.parameters())
-
         self.last_target_update_episode = 0
-
         self.optimiser = RMSprop(params=self.params, lr=args.lr, alpha=args.optim_alpha, eps=args.optim_eps)
-
         # a little wasteful to deepcopy (e.g. duplicates action selector), but should work for any MAC
         self.target_mac = copy.deepcopy(mac)
-
         self.log_stats_t = -self.args.learner_log_interval - 1
-
-        if self.args.construction == 'matching':
-            self.solver = constructor.MatchingSolver(args)
-        elif self.args.construction == 'tree':
-            self.solver = constructor.TreeSolver(args)
-        elif args.construction == 'line':
-            self.solver = constructor.LineSolver(args)
-        elif args.construction == 'star':
-            self.solver = constructor.StarSolver(args)
-        else:
-            raise Exception("unimplemented method")
-
-        self.constructor = constructor.Constructor(args)
 
         # action encoder
         self.use_action_repr = args.use_action_repr
@@ -48,44 +28,33 @@ class SopcgLearner:
         # Get the relevant quantities
         rewards = batch["reward"][:, :-1]
         actions = batch["actions"][:, :-1]
-        graphs = batch["graphs"]
         terminated = batch["terminated"][:, :-1].float()
         mask = batch["filled"][:, :-1].float()
         mask[:, 1:] = mask[:, 1:] * (1 - terminated[:, :-1])
         avail_actions = batch["avail_actions"]
 
         chosen_action_qvals = []
-        target_max_qvals = []
+        target_qvals = []
         self.mac.init_hidden(batch.batch_size)
         self.target_mac.init_hidden(batch.batch_size)
         for t in range(batch.max_seq_length):
-            # Calculate target values
+            # Calculate target target_qval
 
-            f, g, target_graphs_ = self.mac.forward(batch, t=t, select_graph=True)
-            agent_outs = self.constructor.compute_outputs(f, g, avail_actions[:, t], target_graphs_)
-            agent_outs_detach = agent_outs.detach()
-            agent_outs_detach[avail_actions[:, t] == 0] = -9999999
-            cur_max_actions = agent_outs_detach.max(dim=-1, keepdim=True)[1]
-
-            target_f, target_g = self.target_mac.forward(batch, t=t)
-            if self.args.double_q_on_graph:
-                target_max_qvals.append(self.constructor.compute_values_given_actions(target_f, target_g, cur_max_actions, target_graphs_))
-            else:
-                target_graphs = self.solver.solve_given_actions(target_f, target_g, cur_max_actions, device=self.args.device)
-                target_max_qvals.append(self.constructor.compute_values_given_actions(target_f, target_g, cur_max_actions, target_graphs))
+            masked_f, masked_g, best_actions = self.mac.forward(batch, t=t, test_mode=False)
+            target_f, target_g, _ = self.target_mac.forward(batch, t=t, test_mode=False)
+            target_qval = self.target_mac.q_values(target_f, target_g, best_actions)
+            target_qvals.append(target_qval)
 
             # Calculate estimated Q-Values for the current actions
             if t < batch.max_seq_length - 1:
-                graphs_used = self.solver.solve_given_actions(f, g, actions[:, t], device=self.args.device)
-                # graphs_used = self.solver.graph_epsilon_greedy(graphs_used, self.args.graph_epsilon)
-                mac_values = self.constructor.compute_values_given_actions(f, g, actions[:, t], graphs_used)
+                mac_values = self.mac.q_values(masked_f, masked_g, actions[:, t])
                 chosen_action_qvals.append(mac_values)
 
         chosen_action_qvals = th.stack(chosen_action_qvals, dim=1).unsqueeze(-1)
-        target_max_qvals = th.stack(target_max_qvals[1:], dim=1).unsqueeze(-1)
+        target_qvals = th.stack(target_qvals[1:], dim=1).unsqueeze(-1)
 
         # Calculate 1-step Q-Learning targets
-        targets = rewards + self.args.gamma * (1 - terminated) * target_max_qvals
+        targets = rewards + self.args.gamma * (1 - terminated) * target_qvals
 
         # Td-error
         td_error = (chosen_action_qvals - targets.detach())
@@ -97,9 +66,6 @@ class SopcgLearner:
 
         # # Normal L2 loss, take mean over actual data
         loss = (masked_td_error ** 2).sum() / mask.sum()
-
-        # dot = make_dot(loss)
-        # dot.render(filename="backward_graph", directory='/home/rcrs01/Desktop/stardust/epymarl/results', format="pdf")
 
         # Optimise
         self.optimiser.zero_grad()

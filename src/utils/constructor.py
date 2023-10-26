@@ -1,3 +1,5 @@
+import time
+
 import torch as th
 import numpy as np
 from utils.c_utils import load_c_lib, c_ptr, c_int, c_longlong, c_float, c_double
@@ -275,10 +277,36 @@ class Constructor:
             _graphs = np.array(copy.deepcopy(graphs.detach()).cpu()).astype(ctypes.c_double)
             _best_actions = np.zeros((bs, n)).astype(ctypes.c_double)
 
+            # print(f'start solving dcop...')
+            # start = time.time()
             self.tree_lib.solve_tree_DCOP(c_ptr(_f), c_ptr(_g), c_ptr(_graphs), c_ptr(_best_actions), bs, n, m)
+            # end = time.time()
+            # print(f'end (time: {end - start})')
 
             best_actions = th.tensor(copy.deepcopy(_best_actions), dtype=th.int64, device=f.device).unsqueeze(-1)
 
+            # to one-hot
+            # e.g. best actions: [[[11],
+            #          [ 0],
+            #          [ 1],
+            #          [ 0],
+            #          [ 0],
+            #          [ 0],
+            #          [ 0],
+            #          [ 0],
+            #          [ 0],
+            #          [ 0]]], device='cuda:0')
+            # agent_output: tensor([[[0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0.],
+            #          [1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+            #          [0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+            #          [1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+            #          [1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+            #          [1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+            #          [1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+            #          [1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+            #          [1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+            #          [1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]]],
+            #        device='cuda:0')
             agent_outputs = f.new_zeros(f.shape[0], self.n_agents, self.n_actions)
             agent_outputs.scatter_(dim=-1, index=best_actions,
                                    src=agent_outputs.new_ones(1, 1, 1).expand_as(best_actions))

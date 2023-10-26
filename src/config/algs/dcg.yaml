@@ -35,3 +35,5 @@ use_action_repr: False
 action_latent_dim: 20
 state_latent_dim: 32
 action_repr_learning_phase: 40000
+standardise_returns: False
+standardise_rewards: False

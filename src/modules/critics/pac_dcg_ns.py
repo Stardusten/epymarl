@@ -242,7 +242,7 @@ class DCGCriticNS():
         for i in range(len(self.utility_fun)):
             self.utility_fun[i].load_state_dict(other_mac.utility_fun[i].state_dict())
         for i in range(len(self.payoff_fun)):
-            self.payoff_fun[i].load_state_dict(other_mac.payoff_fun[i].state_dict())
+            self.payoff_fun[i].load_state_dict(other_mac.pairwise_q[i].state_dict())
 
     @staticmethod
     def _mlp(input, hidden_dims, output):
